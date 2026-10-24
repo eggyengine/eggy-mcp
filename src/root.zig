@@ -1,12 +1,19 @@
 //! MCP: lets coding agents drive the Eggy editor through the Model Context Protocol. For now, the
-//! MCP menu on the editor's top bar.
+//! MCP menu, which writes each agent's file pointing it at the editor's server.
 const std = @import("std");
 const eggy = @import("eggy");
-
-/// The agents the MCP menu writes configuration files for, in menu order.
-const Agent = enum { claude_code, cursor, vs_code, gemini_cli, codex };
+const agent_files = @import("agent_files.zig");
+const Agent = agent_files.Agent;
 
 pub const Plugin = struct {
+    pub const Preferences = struct {
+        port: u16 = 7755,
+
+        pub const descriptions = .{
+            .port = "The port the editor's MCP server listens on, on this computer only. Generate the agents' files again after changing it.",
+        };
+    };
+
     pub const editor_menus = [_]eggy.plugins.EditorMenu{.{ .key = "mcp", .title = "MCP", .items = &.{
         .{ .key = "claude_code", .title = "Generate Claude Code files" },
         .{ .key = "cursor", .title = "Generate Cursor files" },
@@ -19,15 +26,44 @@ pub const Plugin = struct {
         std.debug.assert(editor_menus[0].items.len == @typeInfo(Agent).@"enum".field_names.len);
     }
 
-    // ponytail: rows only log; writing each agent's files waits on the MCP server and an undoable file write in eggy.editor.
     pub fn editorBarAction(self: *Plugin, target: eggy.plugins.EditorBarTarget, editor: *eggy.editor.Context) !void {
         _ = self;
-        _ = editor;
         const row = switch (target) {
             .menu_item => |row| row,
             else => return,
         };
         const agent: Agent = @fromBackingInt(@intCast(row.item));
-        std.log.info("MCP: generating {t} files isn't written yet", .{agent});
+        generate(editor, agent) catch |err| {
+            std.log.err("MCP: couldn't write {s} for {s}: {t}", .{ agent.path(), agent.title(), err });
+            return err;
+        };
     }
 };
+
+/// Write `agent`'s file into the project, keeping what else it holds; one undo step.
+fn generate(editor: *eggy.editor.Context, agent: Agent) !void {
+    var arena_state = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    // What the file holds now, if anything.
+    const folder = try editor.projectFolder(arena);
+    var threaded: std.Io.Threaded = .init_single_threaded;
+    const io = threaded.io();
+    const existing: ?[]const u8 = blk: {
+        var dir = try std.Io.Dir.cwd().openDir(io, folder, .{});
+        defer dir.close(io);
+        break :blk dir.readFileAlloc(io, agent.path(), arena, .limited(16 << 20)) catch |err| switch (err) {
+            error.FileNotFound => null,
+            else => return err,
+        };
+    };
+
+    const url = try agent_files.serverUrl(arena, editor.app.preferences(Plugin.Preferences).port);
+    try editor.writeFile(agent.path(), try agent_files.configure(arena, agent, existing, url));
+    std.log.info("MCP: {s} now points {s} at {s}", .{ agent.path(), agent.title(), url });
+}
+
+test {
+    _ = agent_files;
+}
