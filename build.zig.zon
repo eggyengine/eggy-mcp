@@ -1,12 +1,12 @@
 .{
     .name = .eggy_mcp,
-    .version = "0.2.0",
+    .version = "0.3.0",
     .fingerprint = 0x9fbfb05e800ea209, // Changing this has security and trust implications.
     .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .eggy = .{
-            .url = "git+https://github.com/eggyengine/eggy#b9865e9c217abe329354e8fd6a55026f0ae51bb4",
-            .hash = "eggy-0.1.0-3fi9DLeXYQD_YiU-LUEYBwqcqJEUF8jkViZt2tDL4L1v",
+            .url = "git+https://github.com/eggyengine/eggy#429507e174b5937f66a26a8836a736c42c5bcd00",
+            .hash = "eggy-0.1.0-3fi9DEZ8YwB2f5HVMMq0eGRuXOZsZiEygVR8EpUxxNBZ",
         },
     },
     .paths = .{
