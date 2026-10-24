@@ -3,8 +3,8 @@
 Let coding agents drive the Eggy editor through the [Model Context Protocol](https://modelcontextprotocol.io).
 
 > [!WARNING]
-> Early days: the plugin adds the MCP menu, but its rows don't generate files yet, and the
-> server agents connect to isn't there yet.
+> Early days: the MCP menu writes each agent's configuration, but the server it points them
+> at isn't there yet, so agents can't connect.
 
 ## Install
 
@@ -18,14 +18,22 @@ It is a dev plugin: the editor runs it, and exported games leave it out.
 
 ## Use
 
-The **MCP** menu on the editor's top bar writes the files each agent needs to find the editor,
+The **MCP** menu on the editor's top bar writes the file each agent reads to find the editor,
 into your project's folder:
 
-- Generate Claude Code files
-- Generate Cursor files
-- Generate VS Code files
-- Generate Gemini CLI files
-- Generate Codex files
+| Menu row | File |
+| --- | --- |
+| Generate Claude Code files | `.mcp.json` |
+| Generate Cursor files | `.cursor/mcp.json` |
+| Generate VS Code files | `.vscode/mcp.json` |
+| Generate Gemini CLI files | `.gemini/settings.json` |
+| Generate Codex files | `.codex/config.toml` |
+
+If the file is already there, only its `eggy` server is added or replaced; everything else
+in it stays. Edit > Undo takes the change back.
+
+The files point agents at `http://127.0.0.1:7755/mcp`, on your computer only. To use another
+port, change **Port** in the plugin's preferences, then generate the files again.
 
 ## Requirements
 
