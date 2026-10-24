@@ -1,0 +1,12 @@
+.{
+    .plugin = .{
+        .title = "MCP",
+        .module = "eggy_mcp",
+        .version = "0.1.0",
+        .description = "Lets coding agents drive the editor through the Model Context Protocol.",
+        .dev = true,
+        .repository = "https://github.com/eggyengine/eggy-mcp",
+        // This package's build.zig.zon fingerprint.
+        .fingerprint = 0x9fbfb05e800ea209,
+    },
+}
