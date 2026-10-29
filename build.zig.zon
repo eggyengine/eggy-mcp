@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .eggy = .{
-            .url = "git+https://github.com/eggyengine/eggy#429507e174b5937f66a26a8836a736c42c5bcd00",
-            .hash = "eggy-0.1.0-3fi9DEZ8YwB2f5HVMMq0eGRuXOZsZiEygVR8EpUxxNBZ",
+            .url = "git+https://github.com/eggyengine/eggy#b393233ef4bf83c0f12c0280d1b530fbd1981aa8",
+            .hash = "eggy-0.1.0-3fi9DKKOawD5LqxsW5WSfLOVw2qUbwt2tBECa3m8439w",
         },
     },
     .paths = .{

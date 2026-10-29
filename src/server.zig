@@ -39,7 +39,8 @@ pub const Server = struct {
     const gpa = std.heap.smp_allocator;
 
     /// Listen on 127.0.0.1:`port` and accept in the background. `tools` and `instructions` are
-    /// read now; `instructions` must outlive the server. Fails when the port is taken.
+    /// read now; `instructions` must outlive the server. Fails with `error.AddressInUse` when
+    /// something, such as another editor, already listens there.
     pub fn start(port: u16, tools: []const ToolListing, instructions: []const u8) !*Server {
         const self = try gpa.create(Server);
         errdefer gpa.destroy(self);
@@ -49,6 +50,13 @@ pub const Server = struct {
         const io = self.threaded.io();
 
         const address = try Io.net.IpAddress.parseIp4("127.0.0.1", port);
+        // Reusing the address lets a restarted server listen past its old connections, but on
+        // POSIX it also lets a second editor share the port, and agents then reach either one.
+        // ponytail: two editors starting at the same instant can both pass this; take a lock file if that happens.
+        if (address.connect(io, .{ .mode = .stream })) |other| {
+            other.close(io);
+            return error.AddressInUse;
+        } else |_| {}
         self.listener = try address.listen(io, .{ .reuse_address = true });
         errdefer self.listener.socket.close(io);
         try self.tasks.concurrent(io, acceptLoop, .{self});
@@ -262,6 +270,15 @@ test "only pages on this computer count as local" {
     try std.testing.expect(isLocalOrigin("http://127.0.0.1"));
     try std.testing.expect(!isLocalOrigin("http://localhost.evil.com"));
     try std.testing.expect(!isLocalOrigin("https://example.com"));
+}
+
+test "a second server is refused the port, and a restarted one gets it back" {
+    const port = 47755;
+    const first = try Server.start(port, &.{}, "");
+    try std.testing.expectError(error.AddressInUse, Server.start(port, &.{}, ""));
+    first.stop("");
+    const again = try Server.start(port, &.{}, "");
+    again.stop("");
 }
 
 test "the tool list is MCP's shape" {
