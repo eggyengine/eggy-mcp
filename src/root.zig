@@ -6,6 +6,7 @@ const agent_files = @import("agent_files.zig");
 const Server = @import("server.zig").Server;
 const tools = @import("tools.zig");
 const Agent = agent_files.Agent;
+const log = std.log.scoped(.mcp);
 
 const instructions =
     \\This server drives the Eggy game editor that is open on this computer. Scenes are ZON:
@@ -34,10 +35,15 @@ pub const Plugin = struct {
             var arena_state = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
             defer arena_state.deinit();
             const call = tools.Call{ .editor = editor, .arena = arena_state.allocator(), .arguments = job.arguments };
+            // Every call and its answer, for seeing what an agent did.
+            log.debug("{s} {f}", .{ job.name, std.json.fmt(job.arguments, .{}) });
             if (tools.run(job.name, call)) |text| {
+                log.debug("{s} answered: {s}", .{ job.name, text });
                 server.finish(job, text, false);
             } else |err| {
-                server.finish(job, tools.explainFailure(call, err), true);
+                const reason = tools.explainFailure(call, err);
+                log.debug("{s} failed ({t}): {s}", .{ job.name, err, reason });
+                server.finish(job, reason, true);
             }
         }
     }

@@ -96,8 +96,29 @@ pub fn explainFailure(call: Call, err: anyerror) []const u8 {
         error.FileNotFound => "There is no such file.",
         else => "The editor refused.",
     };
-    const console = call.editor.consoleText(call.arena, 5) catch "";
-    return std.fmt.allocPrint(call.arena, "{s} ({t})\nThe Console's latest messages:\n{s}", .{ reason, err, console }) catch reason;
+    const console = call.editor.consoleText(call.arena, 50) catch "";
+    return std.fmt.allocPrint(call.arena, "{s} ({t})\nThe Console's latest messages:\n{s}", .{ reason, err, withoutOwnLog(call.arena, console, 5) }) catch reason;
+}
+
+/// The last `max` of `console`'s messages (each ending in a blank line) that aren't this
+/// plugin's own debug log of calls, which would only repeat the agent's calls back to it.
+fn withoutOwnLog(arena: std.mem.Allocator, console: []const u8, max: usize) []const u8 {
+    var kept: std.ArrayList([]const u8) = .empty;
+    var messages = std.mem.splitSequence(u8, console, "\n\n");
+    while (messages.next()) |message| {
+        const first_line = message[0 .. std.mem.indexOfScalar(u8, message, '\n') orelse message.len];
+        if (message.len == 0 or std.mem.indexOf(u8, first_line, "mcp: ") != null) continue;
+        kept.append(arena, message) catch return console;
+    }
+    const last = kept.items[kept.items.len -| max..];
+    return std.mem.join(arena, "\n\n", last) catch console;
+}
+
+test "the console shown with a failure leaves out this plugin's own call log" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const console = "info: built\n\ndebug(game): mcp: get_scene {}\n\ndebug(game): mcp: get_scene answered: .{\n}\n\nwarning: no camera\n\n";
+    try std.testing.expectEqualStrings("info: built\n\nwarning: no camera", withoutOwnLog(arena.allocator(), console, 5));
 }
 
 fn getStatus(call: Call) ![]const u8 {
